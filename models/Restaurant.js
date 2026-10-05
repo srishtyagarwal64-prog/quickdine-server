@@ -9,7 +9,10 @@ const RestaurantSchema = new Schema({
     reviewCount: { type: Number, default: 0 },
     location: { type: String, required: true, trim: true },
     address: { type: String, required: true },
-    image: { type: String, default: "" },
+    image: {
+    data: Buffer,
+    contentType: String,
+},
     chef: { type: String, required: true },
     tags: [{ type: String }],
     availableSlots: [{ type: String }],

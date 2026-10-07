@@ -202,41 +202,29 @@ export const getRestaurantBySlug = async (req, res) => {
 // GET /api/restaurants/:id/image
 // @access Public
 
+
 export const getRestaurantImage = async (req, res) => {
-    try {
+  try {
+    const restaurant = await Restaurant.findById(req.params.id);
 
-        const restaurant = await Restaurant
-            .findById(req.params.id)
-            .select("image");
-
-        if (
-            !restaurant ||
-            !restaurant.image ||
-            !restaurant.image.data
-        ) {
-
-            res.status(404).json({
-                message: "Restaurant image not found"
-            });
-
-            return;
-        }
-
-        res.set(
-            "Content-Type",
-            restaurant.image.contentType || "image/jpeg"
-        );
-
-        res.send(restaurant.image.data);
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(400).json({
-            message: error.message
-        });
+    if (!restaurant) {
+      return res.status(404).send("Restaurant not found");
     }
+
+    if (!restaurant.image?.data) {
+      return res.status(404).send("Image not found");
+    }
+
+    res.set(
+      "Content-Type",
+      restaurant.image.contentType || "image/jpeg"
+    );
+
+    res.send(restaurant.image.data);
+  } catch (error) {
+    console.error("Get restaurant image error:", error);
+    return res.status(500).send("Failed to load image");
+  }
 };
 
 
@@ -322,3 +310,4 @@ export const getRestaurantAvailability = async (req, res) => {
         });
     }
 };
+

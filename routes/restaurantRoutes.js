@@ -20,17 +20,20 @@ restaurantRouter.get(
   getFeaturedRestaurants
 );
 
-// Image route MUST come before /:slug
+// Restaurant image
+// MUST come before /:slug
 restaurantRouter.get(
   "/:id/image",
   getRestaurantImage
 );
 
+// Restaurant availability
 restaurantRouter.get(
   "/:id/availability",
   getRestaurantAvailability
 );
 
+// Restaurant details
 restaurantRouter.get(
   "/:slug",
   getRestaurantBySlug

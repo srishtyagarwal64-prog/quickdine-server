@@ -1,45 +1,39 @@
 import { Router } from "express";
 
 import {
-    getRestaurants,
-    getFeaturedRestaurants,
-    getRestaurantBySlug,
-    getRestaurantAvailability,
-    getRestaurantImage,
+  getRestaurants,
+  getFeaturedRestaurants,
+  getRestaurantBySlug,
+  getRestaurantAvailability,
+  getRestaurantImage,
 } from "../controllers/restaurantController.js";
-
 
 const restaurantRouter = Router();
 
-
 restaurantRouter.get(
-    "/",
-    getRestaurants
+  "/",
+  getRestaurants
 );
 
-
 restaurantRouter.get(
-    "/featured",
-    getFeaturedRestaurants
+  "/featured",
+  getFeaturedRestaurants
 );
 
-
+// Image route MUST come before /:slug
 restaurantRouter.get(
-    "/:slug",
-    getRestaurantBySlug
+  "/:id/image",
+  getRestaurantImage
 );
 
-
 restaurantRouter.get(
-    "/:id/image",
-    getRestaurantImage
+  "/:id/availability",
+  getRestaurantAvailability
 );
 
-
 restaurantRouter.get(
-    "/:id/availability",
-    getRestaurantAvailability
+  "/:slug",
+  getRestaurantBySlug
 );
-
 
 export default restaurantRouter;

@@ -1,29 +1,40 @@
 import { Restaurant } from "../models/Restaurant.js";
-
 import jwt from "jsonwebtoken";
-
 import { User } from "../models/User.js";
-
 import { Booking } from "../models/Booking.js";
-
 
 // Get all restaurants with search and filters
 // GET /api/restaurants
 // @access Public
-
 export const getRestaurants = async (req, res) => {
     try {
-        const { search, priceRange, rating, location, sort } = req.query;
+        const {
+            search,
+            cuisine,
+            priceRange,
+            rating,
+            location,
+            sort,
+        } = req.query;
 
-        // Build query object
         const queryObj = { status: "approved" };
 
         if (search) {
             queryObj.$or = [
                 { name: { $regex: search, $options: "i" } },
+                { cuisine: { $regex: search, $options: "i" } },
                 { tags: { $regex: search, $options: "i" } },
                 { location: { $regex: search, $options: "i" } },
             ];
+        }
+
+        // Multiple selected cuisines match any of those cuisines.
+        if (cuisine) {
+            const cuisines = Array.isArray(cuisine)
+                ? cuisine
+                : [cuisine];
+
+            queryObj.cuisine = { $in: cuisines };
         }
 
         if (priceRange) {
@@ -47,16 +58,13 @@ export const getRestaurants = async (req, res) => {
             };
         }
 
-        // Sorting
         let sortOption = { createdAt: -1 };
 
         if (sort === "rating") {
             sortOption = { rating: -1 };
-        }
-        else if (sort === "price_low") {
+        } else if (sort === "price_low") {
             sortOption = { priceRange: 1 };
-        }
-        else if (sort === "price_high") {
+        } else if (sort === "price_high") {
             sortOption = { priceRange: -1 };
         }
 
@@ -65,82 +73,61 @@ export const getRestaurants = async (req, res) => {
             .sort(sortOption);
 
         res.json(restaurants);
-
     } catch (error) {
-
         console.error(error);
 
         res.status(400).json({
-            message: error.message
+            message: error.message,
         });
     }
 };
-
 
 // Get featured and exclusive restaurants
 // GET /api/restaurants/featured
 // @access Public
-
 export const getFeaturedRestaurants = async (req, res) => {
     try {
-
         const featured = await Restaurant.find({
             status: "approved",
             $or: [
                 { featured: true },
-                { exclusive: true }
+                { exclusive: true },
             ],
         }).limit(6);
 
         res.json(featured);
-
     } catch (error) {
-
-        console.error(
-            "Get Featured Restaurants Error:",
-            error
-        );
+        console.error("Get Featured Restaurants Error:", error);
 
         res.status(500).json({
-            message: "Server error"
+            message: "Server error",
         });
     }
 };
 
-
 // Get single restaurant by slug
 // GET /api/restaurants/:slug
 // @access Public
-
 export const getRestaurantBySlug = async (req, res) => {
     try {
-
         const restaurant = await Restaurant.findOne({
-            slug: req.params.slug
+            slug: req.params.slug,
         });
 
         if (!restaurant) {
-            res.status(404).json({
-                message: "Restaurant not found"
+            return res.status(404).json({
+                message: "Restaurant not found",
             });
-
-            return;
         }
 
-        // If not approved, verify authorization
-        // owner or admin
-
         if (restaurant.status !== "approved") {
-
             let isAuthorized = false;
 
             if (
                 req.headers.authorization &&
                 req.headers.authorization.startsWith("Bearer")
             ) {
-
                 try {
-
                     const token =
                         req.headers.authorization.split(" ")[1];
 
@@ -149,9 +136,7 @@ export const getRestaurantBySlug = async (req, res) => {
                         process.env.JWT_SECRET
                     );
 
-                    const user = await User.findById(
-                        decoded.id
-                    );
+                    const user = await User.findById(decoded.id);
 
                     if (
                         user &&
@@ -160,109 +145,84 @@ export const getRestaurantBySlug = async (req, res) => {
                             (
                                 user.role === "owner" &&
                                 restaurant.owner.toString() ===
-                                user._id.toString()
+                                    user._id.toString()
                             )
                         )
                     ) {
                         isAuthorized = true;
                     }
-
-                } catch (err) {
-
-                    // Ignore token verify error
-
+                } catch {
+                    // Ignore token verification errors.
                 }
             }
 
             if (!isAuthorized) {
-
-                res.status(404).json({
+                return res.status(404).json({
                     message:
-                        "Restaurant not found or pending approval"
+                        "Restaurant not found or pending approval",
                 });
-
-                return;
             }
         }
 
         res.json(restaurant);
-
     } catch (error) {
-
         console.error(error);
 
         res.status(400).json({
-            message: error.message
+            message: error.message,
         });
     }
 };
 
-
 // Get restaurant image
 // GET /api/restaurants/:id/image
 // @access Public
-
-
 export const getRestaurantImage = async (req, res) => {
-  try {
-    const restaurant = await Restaurant.findById(req.params.id);
+    try {
+        const restaurant = await Restaurant.findById(req.params.id);
 
-    if (!restaurant) {
-      return res.status(404).send("Restaurant not found");
+        if (!restaurant) {
+            return res.status(404).send("Restaurant not found");
+        }
+
+        if (!restaurant.image?.data) {
+            return res.status(404).send("Image not found");
+        }
+
+        res.set(
+            "Content-Type",
+            restaurant.image.contentType || "image/jpeg"
+        );
+
+        res.send(restaurant.image.data);
+    } catch (error) {
+        console.error("Get restaurant image error:", error);
+        return res.status(500).send("Failed to load image");
     }
-
-    if (!restaurant.image?.data) {
-      return res.status(404).send("Image not found");
-    }
-
-    res.set(
-      "Content-Type",
-      restaurant.image.contentType || "image/jpeg"
-    );
-
-    res.send(restaurant.image.data);
-  } catch (error) {
-    console.error("Get restaurant image error:", error);
-    return res.status(500).send("Failed to load image");
-  }
 };
-
 
 // Get dynamic seat availability for slots
 // GET /api/restaurants/:id/availability
 // @access Public
-
 export const getRestaurantAvailability = async (req, res) => {
     try {
-
         const { date } = req.query;
 
         if (!date) {
-
-            res.status(400).json({
-                message: "Please provide a date"
+            return res.status(400).json({
+                message: "Please provide a date",
             });
-
-            return;
         }
 
-        const restaurant = await Restaurant.findById(
-            req.params.id
-        );
+        const restaurant = await Restaurant.findById(req.params.id);
 
         if (!restaurant) {
-
-            res.status(404).json({
-                message: "Restaurant not found"
+            return res.status(404).json({
+                message: "Restaurant not found",
             });
-
-            return;
         }
 
         const bookingDate = new Date(date);
-
-        // Get all active bookings on this date
-        // for the restaurant
 
         const bookings = await Booking.find({
             restaurant: restaurant._id,
@@ -270,43 +230,30 @@ export const getRestaurantAvailability = async (req, res) => {
             status: "confirmed",
         });
 
-        // Map slots to available capacities
+        const availability = restaurant.availableSlots.map((slot) => {
+            const bookedSeats = bookings
+                .filter((booking) => booking.time === slot)
+                .reduce((sum, booking) => sum + booking.guests, 0);
 
-        const availability =
-            restaurant.availableSlots.map((slot) => {
+            const totalSeats = restaurant.totalSeats || 20;
+            const availableSeats = Math.max(
+                0,
+                totalSeats - bookedSeats
+            );
 
-                const bookedSeats =
-                    bookings
-                        .filter((b) => b.time === slot)
-                        .reduce(
-                            (sum, b) => sum + b.guests,
-                            0
-                        );
-
-                const totalSeats =
-                    restaurant.totalSeats || 20;
-
-                const availableSeats =
-                    Math.max(
-                        0,
-                        totalSeats - bookedSeats
-                    );
-
-                return {
-                    time: slot,
-                    availableSeats,
-                    isAvailable: availableSeats > 0,
-                };
-            });
+            return {
+                time: slot,
+                availableSeats,
+                isAvailable: availableSeats > 0,
+            };
+        });
 
         res.json(availability);
-
     } catch (error) {
-
         console.error(error);
 
         res.status(400).json({
-            message: error.message
+            message: error.message,
         });
     }
 };

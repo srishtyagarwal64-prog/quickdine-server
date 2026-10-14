@@ -24,7 +24,7 @@ export const getRestaurants = async (req, res) => {
                 { name: { $regex: search, $options: "i" } },
                 { cuisine: { $regex: search, $options: "i" } },
                 { tags: { $regex: search, $options: "i" } },
-                { location: { $regex: search, $options: "i" } },
+                { location: { $regex: search, $options: "i" } }, { address: { $regex: search, $options: "i" } },
             ];
         }
 
@@ -51,12 +51,7 @@ export const getRestaurants = async (req, res) => {
             };
         }
 
-        if (location) {
-            queryObj.location = {
-                $regex: location,
-                $options: "i",
-            };
-        }
+        if (location) { queryObj.$and = [{ $or: [{ location: { $regex: location, $options: "i" } }, { address: { $regex: location, $options: "i" } }] }]; }
 
         let sortOption = { createdAt: -1 };
 
